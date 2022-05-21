@@ -27,11 +27,8 @@ class Duolingo < Page
     @logged_in = true
   end
 
-  def open_skill(name, *, **)
-    find_element(text: name, timeout: 4).parent.click
-
-    sleep 1
-    find_element(text: 'Legendary +40 XP', timeout: 1)&.click
+  def open_skill(*, name:, language: 'de', **)
+    @driver.get "https://duolingo.com/skill/#{language.downcase}/#{name.downcase.capitalize}"
   end
 
   def start
@@ -45,22 +42,24 @@ class Duolingo < Page
 
     if logged_in
       if skill_name
-        open_skill skill_name
+        open_skill name: skill_name
 
         run_skill
       end
     end
   end
 
-  def run_skill
-    start
+  def run_skill(*, name: nil, **)
+    open_skill name: name if name
+
+    start rescue nil
 
     find_element(attr: 'role', value: 'progressbar', timeout: nil)
 
     begin
       step while true
     rescue
-      find_element(text: 'Continue', timeout: 7)&.click
+      find_element(text: 'Continue', timeout: 7)&.click while true
       run_skill
     end
   end
@@ -110,4 +109,6 @@ class Duolingo < Page
     input.send_keys translated, :return
     translated
   end
+
+  def quit = @driver.quit
 end
