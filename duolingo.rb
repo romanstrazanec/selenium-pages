@@ -11,9 +11,11 @@ class Duolingo < Page
   def self.dict = @@dict
   def dict = @@dict
 
-  def initialize(*, driver: nil, **)
+  def initialize(*, driver: nil, username: nil, **)
     super
     @driver.get 'https://duolingo.com'
+
+    login username: username if username
   end
 
   def login(*, username:, **)
@@ -28,7 +30,9 @@ class Duolingo < Page
   end
 
   def open_skill(*, name:, language: 'de', **)
-    @driver.get "https://duolingo.com/skill/#{language.downcase}/#{name.downcase.capitalize}"
+    url = "https://duolingo.com/skill/#{language.downcase}/#{name.downcase.capitalize}"
+    logger.info "Opening skill at '#{url}'"
+    @driver.get url
   end
 
   def start
@@ -52,45 +56,62 @@ class Duolingo < Page
   def run_skill(*, name: nil, **)
     open_skill name: name if name
 
-    start rescue nil
-
-    find_element(attr: 'role', value: 'progressbar', timeout: nil)
-
     begin
       step while true
-    rescue
-      find_element(text: 'Continue', timeout: 7)&.click while true
+    rescue => e
+      logger.warn e
+      start rescue nil
+
+      if !@use_keyboard && (use_keyboard = find_element(text: 'Use keyboard', timeout: 1))
+        logger.info 'Using keyboard.'
+        use_keyboard.click
+        @use_keyboard = true
+      elsif !@cannot_listen_now && (cannot_listen_now = find_element(text: "Can't listen now", timeout: 1))
+        logger.info 'Cannot listen now.'
+        cannot_listen_now.click
+        @cannot_listen_now = true
+      end
+
       run_skill
     end
   end
 
   def step
-    find_element(text: 'Continue', timeout: 1)&.click
+    logger.info 'Step.'
+    find_element(text: 'Continue', timeout: 3)&.click
 
-    if !@use_keyboard && (use_keyboard = find_element(text: 'Use keyboard', timeout: 1))
-      use_keyboard.click
-      @use_keyboard = true
-    elsif !@cannot_listen_now && (cannot_listen_now = find_element(text: "Can't listen now", timeout: 1))
-      cannot_listen_now.click
-      @cannot_listen_now = true
-    else
-      hint = find_elements(attr: 'data-test', value: 'hint-token', timeout: 1)
-               .filter_map { |el| el.text.clean.presence }.join(' ').strip.gsub(/\s\s+/, ' ')
+    hint = find_elements(attr: 'data-test', value: 'hint-token', timeout: 3)
+    logger.warn "AHOOJ #{hint.present?}"
+    return if hint.blank?
 
-      translated = translate hint
+    logger.warn "CAAAU"
 
-      if translated
-        if (incorrect = find_element(attr: 'data-test', value: 'blame blame-incorrect', timeout: 1))
-          translated = incorrect.child(xpath: '//h2/following-sibling::div').text.clean.strip
-        end
+    logger.info "1 #{hint}"
+    logger.info "2 #{hint.filter_map { |el| el.text.clean.presence }}"
+    logger.info "3 #{hint.filter_map { |el| el.text.clean.presence }.join(' ')}"
+    logger.info "4 #{hint.filter_map { |el| el.text.clean.presence }.join(' ').strip.gsub(/\s\s+/, ' ')}"
 
-        @@dict[hint] = translated
-        @@dict[translated] = hint
+    hint = hint.filter_map { |el| el.text.clean.presence }.join(' ').strip.gsub(/\s\s+/, ' ')
+    logger.warn "COOOL"
+
+    return if hint.blank?
+
+    translated = translate hint
+
+    if translated
+      if (incorrect = find_element(attr: 'data-test', value: 'blame blame-incorrect', timeout: 3))
+        logger.warn "VIIII"
+        translated = incorrect.child(xpath: '//h2/following-sibling::div').text.clean.strip
+        logger.warn "VIIII #{translated}"
       end
+
+      @@dict[hint] = translated
+      @@dict[translated] = hint
     end
   end
 
   def translate(text)
+    logger.info "Translating '#{text}'..."
     input = find_element attr: 'data-test', value: 'challenge-translate-input', timeout: 1
     return unless input
 
@@ -106,6 +127,7 @@ class Duolingo < Page
       GoogleTranslate.new.translate text, tl: tl, sl: sl
     end
 
+    logger.info "Translation complete '#{translated}'"
     input.send_keys translated, :return
     translated
   end

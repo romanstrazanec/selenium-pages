@@ -8,9 +8,10 @@ class GoogleTranslate < Page
 
   def translate(text, tl:, sl: nil)
     in_a_new_tab do
-      @driver.get "https://translate.google.com/?sl=#{sl || 'auto'}&tl=#{tl}"
+      url = "https://translate.google.com/?sl=#{sl || 'auto'}&tl=#{tl}&op=translate&text=#{text.gsub(/\s+/, '%20')}"
+      driver.get url
 
-      source.send_keys text
+      # source.send_keys text
       dest.text
     end
   end
