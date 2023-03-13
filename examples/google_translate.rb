@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 class GoogleTranslate < Page
   XPATH_PREFIX = '/html/body/c-wiz/div/div[2]/c-wiz/div[2]/c-wiz/div[1]/'.freeze
   SOURCE_XPATH = "#{XPATH_PREFIX}div[2]/div[3]/c-wiz[1]/span/span/div/textarea".freeze

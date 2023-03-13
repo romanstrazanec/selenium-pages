@@ -1,4 +1,7 @@
+# frozen_string_literal: true
+
 require 'io/console'
+require_relative 'google_translate'
 
 class Duolingo < Page
   I_ALREADY_HAVE_ACCOUNT_BUTTON = '/html/body/div[1]/div/div/span[1]/div/div[1]/div[2]/div[2]/button'.freeze
